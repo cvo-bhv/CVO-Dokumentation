@@ -93,6 +93,25 @@ export interface Conversation {
   };
 }
 
+export interface AgendaItem {
+  id: string;
+  number: string;
+  title?: string;
+  summary: string;
+}
+
+export interface MeetingMinute {
+  id: string;
+  createdAt: number;
+  date: string;
+  time: string;
+  title: string;
+  chairperson: string;
+  minutesTaker: string;
+  attendees: string;
+  agendaItems: AgendaItem[];
+}
+
 export interface NCConfig {
   url: string;
   user: string;

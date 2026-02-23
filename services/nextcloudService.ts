@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { NCConfig, YearLevel, ClassLevel, Student, Incident, Conversation } from '../types';
+import { NCConfig, YearLevel, ClassLevel, Student, Incident, Conversation, MeetingMinute } from '../types';
 
 const FIXED_NC_CONFIG: NCConfig = {
   url: 'https://victorymind.de/nextcloud/',
@@ -109,6 +109,9 @@ export const saveIncidents = (data: Incident[]) => ncFetch('incidents.json', 'PU
 
 export const fetchConversations = (): Promise<Conversation[]> => ncFetch('conversations.json');
 export const saveConversations = (data: Conversation[]) => ncFetch('conversations.json', 'PUT', JSON.stringify(data));
+
+export const fetchMeetingMinutes = (): Promise<MeetingMinute[]> => ncFetch('meeting_minutes.json');
+export const saveMeetingMinutes = (data: MeetingMinute[]) => ncFetch('meeting_minutes.json', 'PUT', JSON.stringify(data));
 
 export const addYear = async (name: string): Promise<YearLevel> => {
   const years = await fetchYears();
@@ -231,4 +234,31 @@ export const deleteConversation = async (id: string) => {
 export const getConversation = async (id: string): Promise<Conversation | undefined> => {
   const conversations = await fetchConversations();
   return conversations.find(c => c.id === id);
+};
+
+export const addMeetingMinute = async (minute: Omit<MeetingMinute, 'id' | 'createdAt'>): Promise<MeetingMinute> => {
+  const minutes = await fetchMeetingMinutes();
+  const newMinute = { ...minute, id: uuidv4(), createdAt: Date.now() };
+  minutes.push(newMinute);
+  await saveMeetingMinutes(minutes);
+  return newMinute;
+};
+
+export const updateMeetingMinute = async (minute: MeetingMinute) => {
+  const minutes = await fetchMeetingMinutes();
+  const index = minutes.findIndex(m => m.id === minute.id);
+  if (index !== -1) {
+    minutes[index] = minute;
+    await saveMeetingMinutes(minutes);
+  }
+};
+
+export const deleteMeetingMinute = async (id: string) => {
+  const minutes = await fetchMeetingMinutes();
+  await saveMeetingMinutes(minutes.filter(m => m.id !== id));
+};
+
+export const getMeetingMinute = async (id: string): Promise<MeetingMinute | undefined> => {
+  const minutes = await fetchMeetingMinutes();
+  return minutes.find(m => m.id === id);
 };

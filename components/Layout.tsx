@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ShieldAlert, Users, Settings, MessageSquare, Lock, Maximize, Minimize, Menu, X } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, Users, Settings, MessageSquare, Lock, Maximize, Minimize, Menu, X, FileText } from 'lucide-react';
 
 export const AppLayout = ({ children }: { children?: React.ReactNode }) => {
   const location = useLocation();
@@ -12,6 +12,7 @@ export const AppLayout = ({ children }: { children?: React.ReactNode }) => {
     { to: "/", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/incidents", icon: ShieldAlert, label: "Vorfallsprotokolle" },
     { to: "/protocols", icon: MessageSquare, label: "Gesprächsprotokolle" },
+    { to: "/meetings", icon: FileText, label: "Sitzungsprotokolle" },
     { to: "/structure", icon: Users, label: "Verwaltung" },
   ];
 

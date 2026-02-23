@@ -45,6 +45,7 @@ export const IncidentForm = () => {
 
   // Print State
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -93,6 +94,7 @@ export const IncidentForm = () => {
                 setSelectedStudent(student.id);
               }
             }
+            setHasUnsavedChanges(false);
           }
         }
       } catch (e) {
@@ -108,6 +110,7 @@ export const IncidentForm = () => {
     setSelectedClass("");
     setSelectedStudent("");
     setStudents([]);
+    setHasUnsavedChanges(true);
     if (yId) {
       const cls = await getClassesByYear(yId);
       setClasses(cls);
@@ -120,6 +123,7 @@ export const IncidentForm = () => {
     const cId = e.target.value;
     setSelectedClass(cId);
     setSelectedStudent("");
+    setHasUnsavedChanges(true);
     if (cId) {
       const studs = await getStudentsByClass(cId);
       setStudents(studs);
@@ -191,13 +195,31 @@ export const IncidentForm = () => {
       status
     };
 
+    let savedId = id;
     if (isEditMode && id) {
       // @ts-ignore
       await updateIncident({ ...incidentData, id, createdAt: Date.now() }); 
     } else {
-      await addIncident(incidentData);
+      const newIncident = await addIncident(incidentData);
+      savedId = newIncident.id;
     }
-    navigate('/incidents');
+    
+    setHasUnsavedChanges(false);
+    if (!isEditMode && savedId) {
+      navigate(`/incidents/edit/${savedId}`, { replace: true });
+    } else {
+      alert("Erfolgreich gespeichert!");
+    }
+  };
+
+  const handleCancel = () => {
+    if (hasUnsavedChanges) {
+      if (window.confirm("Es gibt ungespeicherte Änderungen. Möchten Sie wirklich abbrechen?")) {
+        navigate('/incidents');
+      }
+    } else {
+      navigate('/incidents');
+    }
   };
 
   const handleDelete = async () => {
@@ -240,13 +262,13 @@ export const IncidentForm = () => {
               <Trash2 className="w-5 h-5" />
             </button>
           )}
-          <button onClick={() => navigate('/incidents')} className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-full transition">
+          <button onClick={handleCancel} className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-full transition">
             <X className="w-6 h-6" />
           </button>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <form onSubmit={handleSubmit} onChange={() => setHasUnsavedChanges(true)} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         {/* Section 1: Student Selection */}
         <div className="p-6 border-b border-gray-100 bg-gray-50">
           <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
@@ -277,7 +299,7 @@ export const IncidentForm = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Schüler:in</label>
               <div className="flex gap-2">
-                <select className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={selectedStudent} onChange={(e) => setSelectedStudent(e.target.value)} disabled={!selectedClass} required>
+                <select className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={selectedStudent} onChange={(e) => { setSelectedStudent(e.target.value); setHasUnsavedChanges(true); }} disabled={!selectedClass} required>
                   <option value="">Bitte wählen...</option>
                   {students.map(s => <option key={s.id} value={s.id}>{s.lastName}, {s.firstName}</option>)}
                 </select>
@@ -393,7 +415,7 @@ export const IncidentForm = () => {
         </div>
 
         <div className="p-6 border-t border-gray-200 flex justify-end space-x-3 bg-gray-50">
-          <button type="button" onClick={() => navigate('/incidents')} className="px-6 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium">Abbrechen</button>
+          <button type="button" onClick={handleCancel} className="px-6 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium">Abbrechen</button>
           
           <button type="button" onClick={() => setShowPrintPreview(true)} className="px-6 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium flex items-center">
             <Printer className="w-4 h-4 mr-2" /> Druckvorschau

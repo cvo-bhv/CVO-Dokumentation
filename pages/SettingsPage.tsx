@@ -5,8 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { IncidentStatus, IncidentCategory, ConversationType } from '../types';
 import { 
   getNCConfig, saveNCConfig, fetchYears, isNCConfigured,
-  fetchClasses, fetchStudents, fetchIncidents, fetchConversations,
-  saveYears, saveClasses, saveStudents, saveIncidents, saveConversations 
+  fetchClasses, fetchStudents, fetchIncidents, fetchConversations, fetchMeetingMinutes,
+  saveYears, saveClasses, saveStudents, saveIncidents, saveConversations, saveMeetingMinutes
 } from '../services/nextcloudService';
 
 export const SettingsPage = () => {
@@ -104,7 +104,7 @@ export const SettingsPage = () => {
         return;
     }
     
-    if (!confirm("Dies generiert ca. 200 Datensätze (Vorfälle & Gespräche) sowie Schülerdaten in Ihrer Nextcloud.\n\nDieser Vorgang kann bis zu 30 Sekunden dauern.\n\nFortfahren?")) return;
+    if (!confirm("Dies generiert ca. 200 Datensätze (Vorfälle, Gespräche & Sitzungsprotokolle) sowie Schülerdaten in Ihrer Nextcloud.\n\nDieser Vorgang kann bis zu 30 Sekunden dauern.\n\nFortfahren?")) return;
 
     setSeeding(true);
     try {
@@ -126,8 +126,8 @@ export const SettingsPage = () => {
         const oneYearAgo = new Date();
         oneYearAgo.setFullYear(today.getFullYear() - 1);
 
-        const [existingYears, existingClasses, existingStudents, existingIncidents, existingConversations] = await Promise.all([
-            fetchYears(), fetchClasses(), fetchStudents(), fetchIncidents(), fetchConversations()
+        const [existingYears, existingClasses, existingStudents, existingIncidents, existingConversations, existingMeetingMinutes] = await Promise.all([
+            fetchYears(), fetchClasses(), fetchStudents(), fetchIncidents(), fetchConversations(), fetchMeetingMinutes()
         ]);
 
         const newYears = [...existingYears];
@@ -135,6 +135,7 @@ export const SettingsPage = () => {
         const newStudents = [...existingStudents];
         const newIncidents = [...existingIncidents];
         const newConversations = [...existingConversations];
+        const newMeetingMinutes = [...existingMeetingMinutes];
 
         const createdYears: any[] = [];
         const createdStudents: any[] = [];
@@ -287,15 +288,62 @@ export const SettingsPage = () => {
             });
         }
 
+        const MEETING_TOPICS = [
+            { title: "Dienstbesprechung", chair: "Herr Schmidt", taker: "Frau Müller", attendees: "Gesamtes Kollegium" },
+            { title: "Fachkonferenz Mathe", chair: "Frau Weber", taker: "Herr Becker", attendees: "Mathe-Lehrkräfte" },
+            { title: "Klassenkonferenz 8b", chair: "Herr Meyer", taker: "Frau Schulz", attendees: "Klassenlehrer, Fachlehrer 8b" },
+            { title: "Steuergruppe", chair: "Frau Wagner", taker: "Herr Hoffmann", attendees: "Mitglieder der Steuergruppe" },
+            { title: "Schulvorstand", chair: "Herr Schmidt", taker: "Frau Koch", attendees: "Schulleitung, Elternvertreter, Schülervertreter" }
+        ];
+
+        for (let i = 0; i < 20; i++) {
+            const topic = getRandom(MEETING_TOPICS);
+            const dateObj = getRandomDate(oneYearAgo, today);
+            
+            newMeetingMinutes.push({
+                id: uuidv4(),
+                createdAt: Date.now(),
+                date: dateObj.toISOString().split('T')[0],
+                time: `${String(Math.floor(Math.random() * 7) + 8).padStart(2, '0')}:00 - ${String(Math.floor(Math.random() * 7) + 9).padStart(2, '0')}:30`,
+                title: topic.title,
+                chairperson: topic.chair,
+                minutesTaker: topic.taker,
+                attendees: topic.attendees,
+                agendaItems: [
+                    {
+                        id: uuidv4(),
+                        title: "Begrüßung und Formalia",
+                        summary: "Feststellung der Beschlussfähigkeit. Genehmigung des letzten Protokolls.",
+                        tasks: []
+                    },
+                    {
+                        id: uuidv4(),
+                        title: "Aktuelle Themen",
+                        summary: "Diskussion über aktuelle Herausforderungen im Schulalltag. <b>Wichtig:</b> Handyverbot in den Pausen konsequenter durchsetzen.",
+                        tasks: [
+                            { id: uuidv4(), description: "Rundmail an alle Eltern bzgl. Handyverbot", assignee: "Schulleitung", deadline: new Date(dateObj.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], completed: Math.random() > 0.5 }
+                        ]
+                    },
+                    {
+                        id: uuidv4(),
+                        title: "Verschiedenes",
+                        summary: "Nächster Termin in 4 Wochen.",
+                        tasks: []
+                    }
+                ]
+            });
+        }
+
         await Promise.all([
             saveYears(newYears),
             saveClasses(newClasses),
             saveStudents(newStudents),
             saveIncidents(newIncidents),
-            saveConversations(newConversations)
+            saveConversations(newConversations),
+            saveMeetingMinutes(newMeetingMinutes)
         ]);
 
-        alert("Erfolg! Es wurden 100 Vorfälle und 100 Gespräche sowie die nötige Struktur generiert. Viel Erfolg bei der Präsentation!");
+        alert("Erfolg! Es wurden 100 Vorfälle, 100 Gespräche und 20 Sitzungsprotokolle sowie die nötige Struktur generiert. Viel Erfolg bei der Präsentation!");
     } catch (e: any) {
         console.error(e);
         alert("Fehler beim Erstellen der Demo-Daten: " + e.message + "\n\nBitte prüfen Sie die Konfiguration und die Browser-Konsole.");
@@ -461,7 +509,7 @@ export const SettingsPage = () => {
           <h3 className="text-lg font-bold text-gray-800">Präsentations-Modus (Demo-Daten)</h3>
         </div>
         <p className="text-sm text-gray-600 mb-4">
-          Nutzen Sie diese Funktion, um die Datenbank mit ca. 200 Einträgen (Vorfälle & Gespräche) zu füllen. 
+          Nutzen Sie diese Funktion, um die Datenbank mit ca. 200 Einträgen (Vorfälle, Gespräche & Sitzungsprotokolle) zu füllen. 
           Ideal zur Demonstration der App vor dem Kollegium.
         </p>
         <button 
@@ -469,7 +517,7 @@ export const SettingsPage = () => {
             disabled={seeding}
             className={`bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-purple-700 transition flex items-center ${seeding ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-            {seeding ? <><Clock className="w-4 h-4 mr-2 animate-spin"/> Generiere 200+ Datensätze...</> : "Demo-Daten generieren (Vorfälle & Gespräche)"}
+            {seeding ? <><Clock className="w-4 h-4 mr-2 animate-spin"/> Generiere 200+ Datensätze...</> : "Demo-Daten generieren (Vorfälle, Gespräche & Protokolle)"}
         </button>
       </div>
 

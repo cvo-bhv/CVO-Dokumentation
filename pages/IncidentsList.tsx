@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
-  Plus, Printer, Search, FileText, Filter, Calendar, Users, AlertCircle, CloudOff, ArrowUpDown
+  Plus, Printer, Search, FileText, Filter, Calendar, Users, AlertCircle, CloudOff, ArrowUpDown, Trash2
 } from 'lucide-react';
 import { IncidentStatus, IncidentCategory, JoinedIncident, ClassLevel } from '../types';
-import { fetchIncidents, fetchStudents, fetchClasses, fetchYears, isNCConfigured } from '../services/nextcloudService';
+import { fetchIncidents, fetchStudents, fetchClasses, fetchYears, isNCConfigured, deleteIncident } from '../services/nextcloudService';
 
 export const IncidentsList = () => {
   const navigate = useNavigate();
@@ -128,7 +128,25 @@ export const IncidentsList = () => {
 
   const sortedClasses = [...classes].sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
 
-  const handlePrint = () => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (window.confirm("Möchten Sie diesen Eintrag wirklich löschen?")) {
+      try {
+        await deleteIncident(id);
+        setIncidents(prev => prev.filter(i => i.id !== id));
+      } catch (error) {
+        console.error("Error deleting incident", error);
+        alert("Fehler beim Löschen.");
+      }
+    }
+  };
+
+  const handlePrintSingle = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    window.open(`#/print-incident?id=${id}`, '_blank');
+  };
+
+  const handlePrintAll = () => {
     if(!isConfigured) return;
     const params = new URLSearchParams();
     params.append('type', 'incidents');
@@ -165,7 +183,7 @@ export const IncidentsList = () => {
           <p className="text-gray-500">Verwalten und filtern Sie alle dokumentierten Konflikte.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={handlePrint} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition flex items-center shadow-sm">
+          <button onClick={handlePrintAll} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition flex items-center shadow-sm">
             <Printer className="w-5 h-5 mr-2" /> Druckvorschau
           </button>
           <Link to="/incidents/new" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center shadow-sm">
@@ -295,9 +313,17 @@ export const IncidentsList = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-blue-600 hover:text-blue-800 p-2 hover:bg-white rounded-full transition shadow-sm border border-transparent hover:border-blue-100">
-                        <FileText className="w-4 h-4" />
-                      </button>
+                      <div className="flex flex-col items-end space-y-2">
+                        <button onClick={(e) => handlePrintSingle(e, inc.id)} className="text-gray-600 hover:text-indigo-600 p-2 hover:bg-indigo-50 rounded-full transition shadow-sm border border-transparent hover:border-indigo-100" title="Drucken">
+                          <Printer className="w-4 h-4" />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); navigate(`/incidents/edit/${inc.id}`); }} className="text-blue-600 hover:text-blue-800 p-2 hover:bg-blue-50 rounded-full transition shadow-sm border border-transparent hover:border-blue-100" title="Bearbeiten">
+                          <FileText className="w-4 h-4" />
+                        </button>
+                        <button onClick={(e) => handleDelete(e, inc.id)} className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-full transition shadow-sm border border-transparent hover:border-red-100" title="Löschen">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

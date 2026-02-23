@@ -44,6 +44,7 @@ export const ProtocolForm = () => {
 
   // Print State
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -76,6 +77,7 @@ export const ProtocolForm = () => {
               setNextLocation(conv.nextAppointment.location);
               setNextParticipants(conv.nextAppointment.participants);
             }
+            setHasUnsavedChanges(false);
           }
         }
       } catch (e) {
@@ -88,6 +90,7 @@ export const ProtocolForm = () => {
   const handleStudentSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const sId = e.target.value;
     setSelectedStudentId(sId);
+    setHasUnsavedChanges(true);
     if (sId) {
       const s = availableStudents.find(st => st.id === sId);
       if (s) {
@@ -115,13 +118,31 @@ export const ProtocolForm = () => {
       } : undefined
     };
 
+    let savedId = id;
     if (isEditMode && id) {
       // @ts-ignore
       await updateConversation({ ...data, id, createdAt: Date.now() });
     } else {
-      await addConversation(data);
+      const newConv = await addConversation(data);
+      savedId = newConv.id;
     }
-    navigate('/protocols');
+    
+    setHasUnsavedChanges(false);
+    if (!isEditMode && savedId) {
+      navigate(`/protocols/edit/${savedId}`, { replace: true });
+    } else {
+      alert("Erfolgreich gespeichert!");
+    }
+  };
+
+  const handleCancel = () => {
+    if (hasUnsavedChanges) {
+      if (window.confirm("Es gibt ungespeicherte Änderungen. Möchten Sie wirklich abbrechen?")) {
+        navigate('/protocols');
+      }
+    } else {
+      navigate('/protocols');
+    }
   };
 
   const handleDelete = async () => {
@@ -163,13 +184,13 @@ export const ProtocolForm = () => {
               <Trash2 className="w-5 h-5" />
             </button>
           )}
-          <button onClick={() => navigate('/protocols')} className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-full transition">
+          <button onClick={handleCancel} className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-full transition">
             <X className="w-6 h-6" />
           </button>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <form onSubmit={handleSubmit} onChange={() => setHasUnsavedChanges(true)} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         
         {/* Header / Meta */}
         <div className="p-6 border-b border-gray-100 bg-gray-50">
@@ -299,7 +320,7 @@ export const ProtocolForm = () => {
         </div>
 
         <div className="p-6 border-t border-gray-200 flex justify-end space-x-3 bg-white">
-          <button type="button" onClick={() => navigate('/protocols')} className="px-6 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium">Abbrechen</button>
+          <button type="button" onClick={handleCancel} className="px-6 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium">Abbrechen</button>
           
           <button type="button" onClick={() => setShowPrintPreview(true)} className="px-6 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium flex items-center">
             <Printer className="w-4 h-4 mr-2" /> Druckvorschau

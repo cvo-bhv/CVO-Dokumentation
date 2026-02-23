@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { X, Printer, Calendar, Users } from 'lucide-react';
-import { JoinedIncident, ClassLevel, Conversation } from '../types';
-import { fetchIncidents, fetchStudents, fetchClasses, fetchYears, fetchConversations } from '../services/nextcloudService';
+import { JoinedIncident, ClassLevel, Conversation, MeetingMinute } from '../types';
+import { fetchIncidents, fetchStudents, fetchClasses, fetchYears, fetchConversations, fetchMeetingMinutes } from '../services/nextcloudService';
 
 export const PrintView = () => {
   const location = useLocation();
@@ -11,6 +11,7 @@ export const PrintView = () => {
   
   const [incidents, setIncidents] = useState<JoinedIncident[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>([]);
   const [classes, setClasses] = useState<ClassLevel[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,10 +51,13 @@ export const PrintView = () => {
             } as JoinedIncident;
             });
             setIncidents(joined);
-        } else {
+        } else if (type === 'protocols') {
             // Load Protocols
             const convs = await fetchConversations();
             setConversations(convs);
+        } else if (type === 'meeting_minutes') {
+            const minutes = await fetchMeetingMinutes();
+            setMeetingMinutes(minutes);
         }
       } catch (e) { console.error(e); } finally { setLoading(false); }
     };
@@ -76,7 +80,7 @@ export const PrintView = () => {
             return timeB - timeA;
         });
         return result;
-    } else {
+    } else if (type === 'protocols') {
         // Protocols
         let result = conversations.filter(conv => {
             const matchesSearch = 
@@ -93,14 +97,29 @@ export const PrintView = () => {
             return timeB - timeA;
         });
         return result;
+    } else {
+        // Meeting Minutes
+        let result = meetingMinutes.filter(m => {
+            const matchesSearch = 
+              m.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              m.chairperson.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              m.attendees.toLowerCase().includes(searchTerm.toLowerCase());
+            return matchesSearch;
+        });
+        result.sort((a, b) => {
+            const timeA = new Date(`${a.date}T${a.time.split('-')[0].trim().replace('h', '') || "00:00"}`).getTime();
+            const timeB = new Date(`${b.date}T${b.time.split('-')[0].trim().replace('h', '') || "00:00"}`).getTime();
+            return timeB - timeA;
+        });
+        return result;
     }
-  }, [type, incidents, conversations, searchTerm, statusFilter, categoryFilter, classFilter, monthFilter, typeFilter]);
+  }, [type, incidents, conversations, meetingMinutes, searchTerm, statusFilter, categoryFilter, classFilter, monthFilter, typeFilter]);
 
   return (
     <div className="bg-white min-h-screen p-8 text-black">
       <div className="no-print fixed top-0 left-0 right-0 bg-slate-800 text-white p-4 flex justify-between items-center shadow-lg z-50">
         <div>
-          <h2 className="font-bold text-lg">Druckvorschau ({type === 'incidents' ? 'Vorfallsprotokolle' : 'Gesprächsprotokolle'})</h2>
+          <h2 className="font-bold text-lg">Druckvorschau ({type === 'incidents' ? 'Vorfallsprotokolle' : type === 'protocols' ? 'Gesprächsprotokolle' : 'Sitzungsprotokolle'})</h2>
           <p className="text-slate-300 text-xs">Überprüfen Sie die Daten und klicken Sie auf "Jetzt Drucken", um das Dokument zu erstellen.</p>
         </div>
         <div className="flex gap-3">
@@ -115,7 +134,7 @@ export const PrintView = () => {
       <div className="h-20 no-print"></div>
 
       <div className="mb-8 border-b-2 border-black pb-4">
-        <h1 className="text-3xl font-bold mb-2">{type === 'incidents' ? 'Vorfallsprotokolle' : 'Gesprächsprotokolle'}</h1>
+        <h1 className="text-3xl font-bold mb-2">{type === 'incidents' ? 'Vorfallsprotokolle' : type === 'protocols' ? 'Gesprächsprotokolle' : 'Sitzungsprotokolle'}</h1>
         <div className="flex justify-between items-end">
           <div className="text-sm space-y-1">
             <p><strong>Erstellt am:</strong> {new Date().toLocaleDateString()} um {new Date().toLocaleTimeString()}</p>
@@ -127,13 +146,13 @@ export const PrintView = () => {
                     {statusFilter !== 'ALL' && `Status: ${statusFilter} • `}
                     {categoryFilter !== 'ALL' && `Kategorie: ${categoryFilter}`}
                   </>
-              ) : (
+              ) : type === 'protocols' ? (
                   <>
                     {typeFilter !== 'ALL' && `Typ: ${typeFilter}`}
                   </>
-              )}
+              ) : null}
               {((type === 'incidents' && classFilter === 'ALL' && statusFilter === 'ALL' && categoryFilter === 'ALL') || 
-                (type === 'protocols' && typeFilter === 'ALL')) && !searchTerm && "Alle Einträge"}
+                (type === 'protocols' && typeFilter === 'ALL') || type === 'meeting_minutes') && !searchTerm && "Alle Einträge"}
             </p>
           </div>
           <div className="text-right text-sm">
@@ -146,17 +165,21 @@ export const PrintView = () => {
         <thead>
           <tr>
             <th style={{width: '15%'}}>Datum/Typ</th>
-            <th style={{width: '20%'}}>Teilnehmer/Schüler</th>
+            <th style={{width: '20%'}}>{type === 'meeting_minutes' ? 'Titel / Leitung' : 'Teilnehmer/Schüler'}</th>
             {type === 'incidents' ? (
                 <>
                     <th style={{width: '15%'}}>Kategorie</th>
                     <th style={{width: '30%'}}>Beschreibung & Beteiligte</th>
                     <th style={{width: '20%'}}>Maßnahmen & Status</th>
                 </>
-            ) : (
+            ) : type === 'protocols' ? (
                 <>
                     <th style={{width: '35%'}}>Thema & Inhalt</th>
                     <th style={{width: '30%'}}>Ergebnis & Folgetermin</th>
+                </>
+            ) : (
+                <>
+                    <th style={{width: '65%'}}>Tagesordnungspunkte</th>
                 </>
             )}
           </tr>
@@ -171,8 +194,8 @@ export const PrintView = () => {
               <tr key={item.id}>
                 <td>
                   <div className="font-bold">{new Date(item.date).toLocaleDateString()}</div>
-                  <div>{item.time} Uhr</div>
-                  <div className="text-gray-600 italic mt-1 text-xs">{item.location}</div>
+                  <div>{item.time} {type !== 'meeting_minutes' && 'Uhr'}</div>
+                  {item.location && <div className="text-gray-600 italic mt-1 text-xs">{item.location}</div>}
                   {type === 'protocols' && <div className="text-xs font-semibold uppercase text-indigo-700 mt-1">{item.type}</div>}
                   {item.reportedBy && <div className="text-gray-500 text-xs mt-2 border-t pt-1">Melder/Prot.: {item.reportedBy}</div>}
                 </td>
@@ -209,7 +232,7 @@ export const PrintView = () => {
                             </div>
                         </td>
                     </>
-                ) : (
+                ) : type === 'protocols' ? (
                     // PROTOCOL COLUMNS
                     <>
                          <td>
@@ -239,6 +262,33 @@ export const PrintView = () => {
                                     <div>{new Date(item.nextAppointment.date).toLocaleDateString()} um {item.nextAppointment.time}</div>
                                     <div className="text-gray-500">{item.nextAppointment.location}</div>
                                 </div>
+                            )}
+                        </td>
+                    </>
+                ) : (
+                    // MEETING MINUTES COLUMNS
+                    <>
+                        <td>
+                            <div className="font-bold">{item.title}</div>
+                            <div className="text-xs text-gray-600 mt-1">L: {item.chairperson}</div>
+                            <div className="text-xs text-gray-600">P: {item.minutesTaker}</div>
+                            <div className="text-xs text-gray-500 mt-2">
+                                <strong>Anwesend:</strong><br/>
+                                {item.attendees}
+                            </div>
+                        </td>
+                        <td>
+                            {item.agendaItems && item.agendaItems.length > 0 ? (
+                                <div className="space-y-2">
+                                    {item.agendaItems.map((agenda: any) => (
+                                        <div key={agenda.id} className="text-sm">
+                                            <strong>TOP {agenda.number}:</strong> {agenda.title && <span className="font-bold text-base ml-1">{agenda.title}</span>}
+                                            <div className="mt-1 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: agenda.summary }} />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <span className="text-gray-400 italic text-sm">Keine TOPs</span>
                             )}
                         </td>
                     </>

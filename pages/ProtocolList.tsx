@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
-  Plus, Search, FileText, Filter, Calendar, MessageSquare, CloudOff, ArrowUpDown, Users, Printer
+  Plus, Search, FileText, Filter, Calendar, MessageSquare, CloudOff, ArrowUpDown, Users, Printer, Trash2
 } from 'lucide-react';
 import { Conversation, ConversationType } from '../types';
-import { fetchConversations, isNCConfigured } from '../services/nextcloudService';
+import { fetchConversations, isNCConfigured, deleteConversation } from '../services/nextcloudService';
 
 export const ProtocolList = () => {
   const navigate = useNavigate();
@@ -58,7 +58,25 @@ export const ProtocolList = () => {
     return result;
   }, [conversations, searchTerm, typeFilter, sortOrder]);
 
-  const handlePrint = () => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (window.confirm("Möchten Sie dieses Protokoll wirklich löschen?")) {
+      try {
+        await deleteConversation(id);
+        setConversations(prev => prev.filter(c => c.id !== id));
+      } catch (error) {
+        console.error("Error deleting conversation", error);
+        alert("Fehler beim Löschen.");
+      }
+    }
+  };
+
+  const handlePrintSingle = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    window.open(`#/print-protocol?id=${id}`, '_blank');
+  };
+
+  const handlePrintAll = () => {
     if(!isConfigured) return;
     const params = new URLSearchParams();
     params.append('type', 'protocols');
@@ -92,7 +110,7 @@ export const ProtocolList = () => {
           <p className="text-gray-500">Dokumentation von Eltern-, Schüler- und Beratungsgesprächen.</p>
         </div>
         <div className="flex gap-2">
-            <button onClick={handlePrint} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition flex items-center shadow-sm">
+            <button onClick={handlePrintAll} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition flex items-center shadow-sm">
                 <Printer className="w-5 h-5 mr-2" /> Druckvorschau
             </button>
             <Link to="/protocols/new" className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center shadow-sm">
@@ -179,9 +197,17 @@ export const ProtocolList = () => {
                        )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-indigo-600 hover:text-indigo-800 p-2 hover:bg-white rounded-full transition shadow-sm border border-transparent hover:border-indigo-100">
-                        <FileText className="w-4 h-4" />
-                      </button>
+                      <div className="flex flex-col items-end space-y-2">
+                        <button onClick={(e) => handlePrintSingle(e, conv.id)} className="text-gray-600 hover:text-indigo-600 p-2 hover:bg-indigo-50 rounded-full transition shadow-sm border border-transparent hover:border-indigo-100" title="Drucken">
+                          <Printer className="w-4 h-4" />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); navigate(`/protocols/edit/${conv.id}`); }} className="text-indigo-600 hover:text-indigo-800 p-2 hover:bg-indigo-50 rounded-full transition shadow-sm border border-transparent hover:border-indigo-100" title="Bearbeiten">
+                          <FileText className="w-4 h-4" />
+                        </button>
+                        <button onClick={(e) => handleDelete(e, conv.id)} className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-full transition shadow-sm border border-transparent hover:border-red-100" title="Löschen">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
