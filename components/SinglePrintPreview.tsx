@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { X, Printer, ZoomIn, ZoomOut, Type } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Printer, ZoomIn, ZoomOut, Type, Download } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 
 interface SinglePrintPreviewProps {
   data: any; 
@@ -10,9 +11,32 @@ interface SinglePrintPreviewProps {
 export const SinglePrintPreview: React.FC<SinglePrintPreviewProps> = ({ data, type, onClose }) => {
   // Start with standard 11pt font size
   const [fontSize, setFontSize] = useState(11);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPDF = () => {
+    if (!printRef.current) return;
+    
+    const element = printRef.current;
+    
+    // Temporarily adjust styles for PDF generation if needed
+    const originalTransform = element.style.transform;
+    element.style.transform = 'none';
+    
+    const opt = {
+      margin:       15,
+      filename:     `${type === 'incident' ? 'Vorfallsprotokoll' : 'Gespraechsprotokoll'}_${new Date().toISOString().split('T')[0]}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        element.style.transform = originalTransform;
+    });
   };
 
   // Helper to format date
@@ -112,6 +136,9 @@ export const SinglePrintPreview: React.FC<SinglePrintPreviewProps> = ({ data, ty
           <button onClick={onClose} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center transition text-sm">
             <X className="w-4 h-4 mr-2" /> Schließen
           </button>
+          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg flex items-center font-bold transition text-sm shadow-lg shadow-emerald-900/20">
+            <Download className="w-4 h-4 mr-2" /> Als PDF speichern
+          </button>
           <button onClick={handlePrint} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center font-bold transition text-sm shadow-lg shadow-blue-900/20">
             <Printer className="w-4 h-4 mr-2" /> Jetzt Drucken
           </button>
@@ -122,6 +149,7 @@ export const SinglePrintPreview: React.FC<SinglePrintPreviewProps> = ({ data, ty
       <div className="flex-1 overflow-y-auto bg-gray-600 p-8 flex justify-center">
         {/* The Paper Sheet */}
         <div 
+          ref={printRef}
           className="bg-white shadow-2xl transition-all duration-200 print-sheet"
           style={{ 
             width: '210mm',          // Fixed A4 width

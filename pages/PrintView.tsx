@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { X, Printer, Calendar, Users } from 'lucide-react';
+import { X, Printer, Calendar, Users, Download } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 import { JoinedIncident, ClassLevel, Conversation, MeetingMinute } from '../types';
 import { fetchIncidents, fetchStudents, fetchClasses, fetchYears, fetchConversations, fetchMeetingMinutes } from '../services/nextcloudService';
 
@@ -14,6 +15,7 @@ export const PrintView = () => {
   const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>([]);
   const [classes, setClasses] = useState<ClassLevel[]>([]);
   const [loading, setLoading] = useState(true);
+  const printRef = useRef<HTMLDivElement>(null);
 
   // Common Filters
   const searchTerm = searchParams.get('search') || "";
@@ -115,6 +117,22 @@ export const PrintView = () => {
     }
   }, [type, incidents, conversations, meetingMinutes, searchTerm, statusFilter, categoryFilter, classFilter, monthFilter, typeFilter]);
 
+  const handleDownloadPDF = () => {
+    if (!printRef.current) return;
+    
+    const element = printRef.current;
+    
+    const opt = {
+      margin:       10,
+      filename:     `Uebersicht_${type}_${new Date().toISOString().split('T')[0]}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    html2pdf().set(opt).from(element).save();
+  };
+
   return (
     <div className="bg-white min-h-screen p-8 text-black">
       <div className="no-print fixed top-0 left-0 right-0 bg-slate-800 text-white p-4 flex justify-between items-center shadow-lg z-50">
@@ -126,6 +144,9 @@ export const PrintView = () => {
           <button onClick={() => window.close()} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center transition">
             <X className="w-4 h-4 mr-2" /> Schließen
           </button>
+          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg flex items-center font-bold transition shadow-lg shadow-emerald-900/20">
+            <Download className="w-4 h-4 mr-2" /> Als PDF speichern
+          </button>
           <button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center font-bold transition">
             <Printer className="w-4 h-4 mr-2" /> Jetzt Drucken
           </button>
@@ -133,7 +154,8 @@ export const PrintView = () => {
       </div>
       <div className="h-20 no-print"></div>
 
-      <div className="mb-8 border-b-2 border-black pb-4">
+      <div ref={printRef} className="print-content-wrapper">
+        <div className="mb-8 border-b-2 border-black pb-4">
         <h1 className="text-3xl font-bold mb-2">{type === 'incidents' ? 'Vorfallsprotokolle' : type === 'protocols' ? 'Gesprächsprotokolle' : 'Sitzungsprotokolle'}</h1>
         <div className="flex justify-between items-end">
           <div className="text-sm space-y-1">
@@ -301,6 +323,7 @@ export const PrintView = () => {
       
       <div className="mt-8 text-xs text-gray-500 text-center border-t border-gray-300 pt-2 print:fixed print:bottom-0 print:left-0 print:right-0 print:bg-white">
         Dokument generiert durch CVO-Dokumentation - Vertrauliche Unterlage
+      </div>
       </div>
     </div>
   );

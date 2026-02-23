@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { X, Printer } from 'lucide-react';
+import { X, Printer, Download } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 import { MeetingMinute } from '../types';
 import { getMeetingMinute } from '../services/nextcloudService';
 
@@ -12,6 +13,7 @@ export const MeetingMinutePrint = () => {
   
   const [minute, setMinute] = useState<MeetingMinute | null>(null);
   const [loading, setLoading] = useState(true);
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -45,6 +47,22 @@ export const MeetingMinutePrint = () => {
     year: 'numeric'
   });
 
+  const handleDownloadPDF = () => {
+    if (!printRef.current) return;
+    
+    const element = printRef.current;
+    
+    const opt = {
+      margin:       15,
+      filename:     `Sitzungsprotokoll_${minute?.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'dokument'}_${new Date().toISOString().split('T')[0]}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save();
+  };
+
   return (
     <div className="bg-white min-h-screen text-black font-sans">
       <div className="no-print fixed top-0 left-0 right-0 bg-slate-800 text-white p-4 flex justify-between items-center shadow-lg z-50">
@@ -56,6 +74,9 @@ export const MeetingMinutePrint = () => {
           <button onClick={() => window.close()} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center transition">
             <X className="w-4 h-4 mr-2" /> Schließen
           </button>
+          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg flex items-center font-bold transition shadow-lg shadow-emerald-900/20">
+            <Download className="w-4 h-4 mr-2" /> Als PDF speichern
+          </button>
           <button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center font-bold transition">
             <Printer className="w-4 h-4 mr-2" /> Jetzt Drucken
           </button>
@@ -64,7 +85,7 @@ export const MeetingMinutePrint = () => {
       <div className="h-24 no-print"></div>
 
       {/* Print Content */}
-      <div className="max-w-[210mm] mx-auto p-8 bg-white print:p-0 print:m-0">
+      <div ref={printRef} className="max-w-[210mm] mx-auto p-8 bg-white print:p-0 print:m-0">
         
         {/* Header */}
         <div className="flex justify-between items-start mb-6">
