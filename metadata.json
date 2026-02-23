@@ -1,0 +1,5 @@
+{
+  "name": "CVO-Dokumentation",
+  "description": "Ein Tool zur Dokumentation und Verwaltung von schulischen Konflikten mit Nextcloud-Integration.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,35 @@
+import React from 'react';
+import { HashRouter, Routes, Route } from 'react-router-dom';
+import { AppLayout } from './components/Layout';
+import { Dashboard } from './pages/Dashboard';
+import { IncidentsList } from './pages/IncidentsList';
+import { IncidentForm } from './pages/IncidentForm';
+import { ProtocolList } from './pages/ProtocolList';
+import { ProtocolForm } from './pages/ProtocolForm';
+import { StructureManager } from './pages/StructureManager';
+import { SettingsPage } from './pages/SettingsPage';
+import { PrintView } from './pages/PrintView';
+
+const App = () => {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route path="/print" element={<PrintView />} />
+        <Route path="/incidents/new" element={<AppLayout><IncidentForm /></AppLayout>} />
+        <Route path="/incidents/edit/:id" element={<AppLayout><IncidentForm /></AppLayout>} />
+        <Route path="/incidents" element={<AppLayout><IncidentsList /></AppLayout>} />
+        
+        <Route path="/protocols/new" element={<AppLayout><ProtocolForm /></AppLayout>} />
+        <Route path="/protocols/edit/:id" element={<AppLayout><ProtocolForm /></AppLayout>} />
+        <Route path="/protocols" element={<AppLayout><ProtocolList /></AppLayout>} />
+
+        <Route path="/structure" element={<AppLayout><StructureManager /></AppLayout>} />
+        <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
+        <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
+        <Route path="*" element={<AppLayout><Dashboard /></AppLayout>} />
+      </Routes>
+    </HashRouter>
+  );
+};
+
+export default App;
