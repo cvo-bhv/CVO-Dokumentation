@@ -176,7 +176,27 @@ export const MeetingMinutesList = () => {
                       <div className="text-xs text-gray-400">{m.time}</div>
                     </td>
                     <td className="px-6 py-4 max-w-xs">
-                      <div className="font-medium text-gray-900 truncate">{m.title}</div>
+                      <div className="font-medium text-gray-900 truncate">
+                        {(() => {
+                          const dateStr = new Date(m.date).toLocaleDateString('de-DE');
+                          let titleParts = [];
+                          const occ = m.occasion || 'UP-Sitzung';
+                          if (occ === 'Sonstige') {
+                            if (m.occasionDetail) {
+                              titleParts.push(m.occasionDetail);
+                            } else {
+                              titleParts.push('Sitzung');
+                            }
+                          } else {
+                            titleParts.push(occ);
+                            if (['Fachkonferenz', 'Teamsitzung'].includes(occ) && m.occasionDetail) {
+                              titleParts.push(m.occasionDetail);
+                            }
+                          }
+                          titleParts.push(dateStr);
+                          return titleParts.join(' ');
+                        })()}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-800">L: {m.chairperson}</div>

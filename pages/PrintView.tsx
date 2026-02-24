@@ -291,7 +291,27 @@ export const PrintView = () => {
                     // MEETING MINUTES COLUMNS
                     <>
                         <td>
-                            <div className="font-bold">{item.title}</div>
+                            <div className="font-bold">
+                              {(() => {
+                                const dateStr = new Date(item.date).toLocaleDateString('de-DE');
+                                let titleParts = [];
+                                const occ = item.occasion || 'UP-Sitzung';
+                                if (occ === 'Sonstige') {
+                                  if (item.occasionDetail) {
+                                    titleParts.push(item.occasionDetail);
+                                  } else {
+                                    titleParts.push('Sitzung');
+                                  }
+                                } else {
+                                  titleParts.push(occ);
+                                  if (['Fachkonferenz', 'Teamsitzung'].includes(occ) && item.occasionDetail) {
+                                    titleParts.push(item.occasionDetail);
+                                  }
+                                }
+                                titleParts.push(dateStr);
+                                return titleParts.join(' ');
+                              })()}
+                            </div>
                             <div className="text-xs text-gray-600 mt-1">L: {item.chairperson}</div>
                             <div className="text-xs text-gray-600">P: {item.minutesTaker}</div>
                             <div className="text-xs text-gray-500 mt-2">

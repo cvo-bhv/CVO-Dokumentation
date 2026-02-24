@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Trash2, X, Save, User, Calendar, MessageSquare, Target, CheckSquare, Clock, Printer } from 'lucide-react';
+import { Trash2, X, Save, User, Calendar, MessageSquare, Target, CheckSquare, Clock, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ConversationType, Conversation, Student, ClassLevel } from '../types';
 import { 
-  fetchStudents, fetchClasses, addConversation, updateConversation, getConversation, deleteConversation, isNCConfigured 
+  fetchStudents, fetchClasses, addConversation, updateConversation, getConversation, deleteConversation, isNCConfigured, fetchConversations 
 } from '../services/nextcloudService';
 import { SinglePrintPreview } from '../components/SinglePrintPreview';
 
@@ -46,6 +46,10 @@ export const ProtocolForm = () => {
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  // Navigation State
+  const [prevId, setPrevId] = useState<string | null>(null);
+  const [nextId, setNextId] = useState<string | null>(null);
+
   useEffect(() => {
     const init = async () => {
       if (!isNCConfigured()) return;
@@ -55,6 +59,24 @@ export const ProtocolForm = () => {
         setAvailableClasses(cls);
 
         if (isEditMode && id) {
+          const allConvs = await fetchConversations();
+          const sortedConvs = [...allConvs].sort((a, b) => {
+            const getTime = (i: any) => {
+              if (!i.date) return 0;
+              const [h, m] = (i.time || "00:00").split(':');
+              const timeStr = `${(h||"00").padStart(2, '0')}:${m||"00"}`;
+              const iso = `${i.date}T${timeStr}`;
+              return new Date(iso).getTime();
+            };
+            return getTime(b) - getTime(a);
+          });
+          
+          const currentIndex = sortedConvs.findIndex(i => i.id === id);
+          if (currentIndex !== -1) {
+            setPrevId(currentIndex > 0 ? sortedConvs[currentIndex - 1].id : null);
+            setNextId(currentIndex < sortedConvs.length - 1 ? sortedConvs[currentIndex + 1].id : null);
+          }
+
           const conv = await getConversation(id);
           if (conv) {
             setType(conv.type);
@@ -177,7 +199,32 @@ export const ProtocolForm = () => {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">{isEditMode ? 'Protokoll bearbeiten' : 'Neues Gesprächsprotokoll'}</h2>
+        <div className="flex items-center space-x-4">
+          <h2 className="text-2xl font-bold text-gray-800">{isEditMode ? 'Protokoll bearbeiten' : 'Neues Gesprächsprotokoll'}</h2>
+          {isEditMode && (
+            <div className="flex items-center space-x-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+              <button 
+                type="button"
+                onClick={() => prevId && navigate(`/protocols/edit/${prevId}`)} 
+                disabled={!prevId}
+                className={`p-1.5 rounded ${prevId ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed'}`}
+                title="Vorheriges Protokoll"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="w-px h-5 bg-gray-200"></div>
+              <button 
+                type="button"
+                onClick={() => nextId && navigate(`/protocols/edit/${nextId}`)} 
+                disabled={!nextId}
+                className={`p-1.5 rounded ${nextId ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed'}`}
+                title="Nächstes Protokoll"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+        </div>
         <div className="flex space-x-2">
           {isEditMode && (
             <button onClick={handleDelete} className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-full transition">

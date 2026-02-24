@@ -29,7 +29,9 @@ export const SinglePrintPreview: React.FC<SinglePrintPreviewProps> = ({ data, ty
     let filename = '';
     if (type === 'meeting_minute') {
       let occasionStr = data.occasion || 'Sitzungsprotokoll';
-      if (['Fachkonferenz', 'Teamsitzung', 'Sonstige'].includes(data.occasion) && data.occasionDetail) {
+      if (data.occasion === 'Sonstige') {
+        occasionStr = data.occasionDetail || 'Sitzungsprotokoll';
+      } else if (['Fachkonferenz', 'Teamsitzung'].includes(data.occasion) && data.occasionDetail) {
         occasionStr += `_${data.occasionDetail}`;
       }
       const dateStr = data.date || new Date().toISOString().split('T')[0];
@@ -260,7 +262,27 @@ export const SinglePrintPreview: React.FC<SinglePrintPreviewProps> = ({ data, ty
             // MEETING MINUTE LAYOUT
             <>
               <div className="mb-8">
-                <h2 className="text-xl font-bold border-b-2 border-gray-800 pb-2 mb-4">{data.title}</h2>
+                <h2 className="text-xl font-bold border-b-2 border-gray-800 pb-2 mb-4">
+                  {(() => {
+                    const dateStr = new Date(data.date).toLocaleDateString('de-DE');
+                    let titleParts = [];
+                    const occ = data.occasion || 'UP-Sitzung';
+                    if (occ === 'Sonstige') {
+                      if (data.occasionDetail) {
+                        titleParts.push(data.occasionDetail);
+                      } else {
+                        titleParts.push('Sitzung');
+                      }
+                    } else {
+                      titleParts.push(occ);
+                      if (['Fachkonferenz', 'Teamsitzung'].includes(occ) && data.occasionDetail) {
+                        titleParts.push(data.occasionDetail);
+                      }
+                    }
+                    titleParts.push(dateStr);
+                    return titleParts.join(' ');
+                  })()}
+                </h2>
                 <div className="grid grid-cols-2 gap-x-12 gap-y-4">
                   <Field label="Datum" value={formatDate(data.date)} />
                   <Field label="Zeit" value={data.time} />

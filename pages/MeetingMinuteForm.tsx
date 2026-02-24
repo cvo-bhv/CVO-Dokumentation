@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Trash2, Plus, X, Printer } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Plus, X, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { MeetingMinute, AgendaItem } from '../types';
-import { addMeetingMinute, updateMeetingMinute, getMeetingMinute, deleteMeetingMinute } from '../services/nextcloudService';
+import { addMeetingMinute, updateMeetingMinute, getMeetingMinute, deleteMeetingMinute, fetchMeetingMinutes } from '../services/nextcloudService';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { SinglePrintPreview } from '../components/SinglePrintPreview';
 
@@ -30,10 +30,32 @@ export const MeetingMinuteForm = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
 
+  // Navigation State
+  const [prevId, setPrevId] = useState<string | null>(null);
+  const [nextId, setNextId] = useState<string | null>(null);
+
   useEffect(() => {
     if (isEdit && id) {
       const load = async () => {
         try {
+          const allMinutes = await fetchMeetingMinutes();
+          const sortedMinutes = [...allMinutes].sort((a, b) => {
+            const getTime = (i: any) => {
+              if (!i.date) return 0;
+              const [h, m] = (i.time || "00:00").split(':');
+              const timeStr = `${(h||"00").padStart(2, '0')}:${m||"00"}`;
+              const iso = `${i.date}T${timeStr}`;
+              return new Date(iso).getTime();
+            };
+            return getTime(b) - getTime(a);
+          });
+          
+          const currentIndex = sortedMinutes.findIndex(i => i.id === id);
+          if (currentIndex !== -1) {
+            setPrevId(currentIndex > 0 ? sortedMinutes[currentIndex - 1].id : null);
+            setNextId(currentIndex < sortedMinutes.length - 1 ? sortedMinutes[currentIndex + 1].id : null);
+          }
+
           const minute = await getMeetingMinute(id);
           if (minute) {
             setFormData(minute);
@@ -59,9 +81,17 @@ export const MeetingMinuteForm = () => {
       
       if (name === 'occasion' || name === 'occasionDetail' || name === 'date') {
         const dateStr = new Date(next.date).toLocaleDateString('de-DE');
-        let titleParts = [next.occasion || 'UP-Sitzung'];
-        if (['Fachkonferenz', 'Teamsitzung', 'Sonstige'].includes(next.occasion || 'UP-Sitzung')) {
+        let titleParts = [];
+        const occ = next.occasion || 'UP-Sitzung';
+        if (occ === 'Sonstige') {
           if (next.occasionDetail) {
+            titleParts.push(next.occasionDetail);
+          } else {
+            titleParts.push('Sitzung');
+          }
+        } else {
+          titleParts.push(occ);
+          if (['Fachkonferenz', 'Teamsitzung'].includes(occ) && next.occasionDetail) {
             titleParts.push(next.occasionDetail);
           }
         }
@@ -171,9 +201,34 @@ export const MeetingMinuteForm = () => {
       )}
 
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">
-          {isEdit ? 'Sitzungsprotokoll bearbeiten' : 'Neues Sitzungsprotokoll'}
-        </h2>
+        <div className="flex items-center space-x-4">
+          <h2 className="text-2xl font-bold text-gray-800">
+            {isEdit ? 'Sitzungsprotokoll bearbeiten' : 'Neues Sitzungsprotokoll'}
+          </h2>
+          {isEdit && (
+            <div className="flex items-center space-x-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+              <button 
+                type="button"
+                onClick={() => prevId && navigate(`/meetings/edit/${prevId}`)} 
+                disabled={!prevId}
+                className={`p-1.5 rounded ${prevId ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed'}`}
+                title="Vorheriges Protokoll"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="w-px h-5 bg-gray-200"></div>
+              <button 
+                type="button"
+                onClick={() => nextId && navigate(`/meetings/edit/${nextId}`)} 
+                disabled={!nextId}
+                className={`p-1.5 rounded ${nextId ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed'}`}
+                title="Nächstes Protokoll"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+        </div>
         <div className="flex space-x-2">
           {isEdit && (
             <button onClick={handleDelete} disabled={saving} className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-full transition">
