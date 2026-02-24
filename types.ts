@@ -106,6 +106,8 @@ export interface MeetingMinute {
   date: string;
   time: string;
   title: string;
+  occasion?: string;
+  occasionDetail?: string;
   chairperson: string;
   minutesTaker: string;
   attendees: string;

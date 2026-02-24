@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { MeetingMinute } from '../types';
 import { fetchMeetingMinutes, isNCConfigured, deleteMeetingMinute } from '../services/nextcloudService';
+import { SinglePrintPreview } from '../components/SinglePrintPreview';
 
 export const MeetingMinutesList = () => {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export const MeetingMinutesList = () => {
   // Filter States
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC"); 
+  const [selectedPrintMinute, setSelectedPrintMinute] = useState<MeetingMinute | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -71,7 +73,10 @@ export const MeetingMinutesList = () => {
 
   const handlePrintSingle = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    window.open(`#/print-meeting?id=${id}`, '_blank');
+    const minute = minutes.find(m => m.id === id);
+    if (minute) {
+      setSelectedPrintMinute(minute);
+    }
   };
 
   const handlePrintAll = () => {
@@ -100,7 +105,14 @@ export const MeetingMinutesList = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {selectedPrintMinute && (
+        <SinglePrintPreview 
+          data={selectedPrintMinute} 
+          type="meeting_minute" 
+          onClose={() => setSelectedPrintMinute(null)} 
+        />
+      )}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-800">Sitzungsprotokolle</h2>

@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { MeetingMinute, AgendaItem } from '../types';
 import { addMeetingMinute, updateMeetingMinute, getMeetingMinute, deleteMeetingMinute } from '../services/nextcloudService';
 import { RichTextEditor } from '../components/RichTextEditor';
+import { SinglePrintPreview } from '../components/SinglePrintPreview';
 
 export const MeetingMinuteForm = () => {
   const navigate = useNavigate();
@@ -17,7 +18,9 @@ export const MeetingMinuteForm = () => {
   const [formData, setFormData] = useState<Omit<MeetingMinute, 'id' | 'createdAt'>>({
     date: new Date().toISOString().split('T')[0],
     time: '',
-    title: 'Protokoll UP-SITZUNG',
+    title: `UP-Sitzung ${new Date().toLocaleDateString('de-DE')}`,
+    occasion: 'UP-Sitzung',
+    occasionDetail: '',
     chairperson: '',
     minutesTaker: '',
     attendees: '',
@@ -25,6 +28,7 @@ export const MeetingMinuteForm = () => {
   });
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -47,9 +51,26 @@ export const MeetingMinuteForm = () => {
     }
   }, [id, isEdit, navigate]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      
+      if (name === 'occasion' || name === 'occasionDetail' || name === 'date') {
+        const dateStr = new Date(next.date).toLocaleDateString('de-DE');
+        let titleParts = [next.occasion || 'UP-Sitzung'];
+        if (['Fachkonferenz', 'Teamsitzung', 'Sonstige'].includes(next.occasion || 'UP-Sitzung')) {
+          if (next.occasionDetail) {
+            titleParts.push(next.occasionDetail);
+          }
+        }
+        titleParts.push(dateStr);
+        next.title = titleParts.join(' ');
+      }
+      
+      return next;
+    });
     setHasUnsavedChanges(true);
   };
 
@@ -134,17 +155,21 @@ export const MeetingMinuteForm = () => {
   };
 
   const handlePrint = () => {
-    if (isEdit && id) {
-      window.open(`#/print-meeting?id=${id}`, '_blank');
-    } else {
-      alert("Bitte speichern Sie das Protokoll zuerst, bevor Sie es drucken.");
-    }
+    setShowPrintPreview(true);
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500">Lade Daten...</div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 relative">
+      {showPrintPreview && (
+        <SinglePrintPreview 
+          data={formData} 
+          type="meeting_minute" 
+          onClose={() => setShowPrintPreview(false)} 
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-800">
           {isEdit ? 'Sitzungsprotokoll bearbeiten' : 'Neues Sitzungsprotokoll'}
@@ -166,9 +191,29 @@ export const MeetingMinuteForm = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Anlass</label>
+                  <select required name="occasion" value={formData.occasion || 'UP-Sitzung'} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="UP-Sitzung">UP-Sitzung</option>
+                    <option value="Fachkonferenz">Fachkonferenz</option>
+                    <option value="Teamsitzung">Teamsitzung</option>
+                    <option value="Gesamtkonferenz">Gesamtkonferenz</option>
+                    <option value="Sonstige">Sonstige</option>
+                  </select>
+                </div>
+                {['Fachkonferenz', 'Teamsitzung', 'Sonstige'].includes(formData.occasion || 'UP-Sitzung') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {formData.occasion === 'Fachkonferenz' ? 'Fach' : formData.occasion === 'Teamsitzung' ? 'Jahrgang' : 'Sonstiges'}
+                    </label>
+                    <input required type="text" name="occasionDetail" value={formData.occasionDetail || ''} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none" />
+                  </div>
+                )}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Titel</label>
-                <input required type="text" name="title" value={formData.title} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="z.B. Protokoll UP-SITZUNG" />
+                <input required type="text" name="title" value={formData.title} readOnly className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

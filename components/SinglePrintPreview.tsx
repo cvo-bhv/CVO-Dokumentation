@@ -4,7 +4,7 @@ import html2pdf from 'html2pdf.js';
 
 interface SinglePrintPreviewProps {
   data: any; 
-  type: 'incident' | 'protocol';
+  type: 'incident' | 'protocol' | 'meeting_minute';
   onClose: () => void;
 }
 
@@ -26,9 +26,22 @@ export const SinglePrintPreview: React.FC<SinglePrintPreviewProps> = ({ data, ty
     const originalTransform = element.style.transform;
     element.style.transform = 'none';
     
+    let filename = '';
+    if (type === 'meeting_minute') {
+      let occasionStr = data.occasion || 'Sitzungsprotokoll';
+      if (['Fachkonferenz', 'Teamsitzung', 'Sonstige'].includes(data.occasion) && data.occasionDetail) {
+        occasionStr += `_${data.occasionDetail}`;
+      }
+      const dateStr = data.date || new Date().toISOString().split('T')[0];
+      const takerStr = data.minutesTaker || '';
+      filename = `${occasionStr}_${dateStr}_${takerStr}`.replace(/[^a-z0-9_äöüß-]/gi, '_').replace(/_+/g, '_') + '.pdf';
+    } else {
+      filename = `${type === 'incident' ? 'Vorfallsprotokoll' : 'Gespraechsprotokoll'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    }
+
     const opt = {
       margin:       15,
-      filename:     `${type === 'incident' ? 'Vorfallsprotokoll' : 'Gespraechsprotokoll'}_${new Date().toISOString().split('T')[0]}.pdf`,
+      filename:     filename,
       image:        { type: 'jpeg', quality: 0.98 },
       html2canvas:  { scale: 2, useCORS: true, logging: false },
       jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -56,14 +69,14 @@ export const SinglePrintPreview: React.FC<SinglePrintPreviewProps> = ({ data, ty
         />
         <div>
           <h1 className="font-bold uppercase tracking-wider leading-tight" style={{ fontSize: '1.5em' }}>
-            {type === 'incident' ? 'Vorfallsprotokoll' : 'Gesprächsprotokoll'}
+            {type === 'incident' ? 'Vorfallsprotokoll' : type === 'protocol' ? 'Gesprächsprotokoll' : 'Sitzungsprotokoll'}
           </h1>
           <p className="font-semibold" style={{ fontSize: '0.9em' }}>CVO Oberschule Bremerhaven</p>
         </div>
       </div>
       <div className="text-right" style={{ fontSize: '0.8em' }}>
         <p>Datum: {new Date().toLocaleDateString()}</p>
-        <p>Dokument-Typ: {type === 'incident' ? 'Konflikt' : 'Beratung'}</p>
+        <p>Dokument-Typ: {type === 'incident' ? 'Konflikt' : type === 'protocol' ? 'Beratung' : 'Sitzung'}</p>
       </div>
     </div>
   );
@@ -89,19 +102,21 @@ export const SinglePrintPreview: React.FC<SinglePrintPreviewProps> = ({ data, ty
   const SignatureSection = () => (
     <div className="mt-12 pt-8 border-t border-gray-400" style={{ breakInside: 'avoid' }}>
       <p className="mb-8 italic text-gray-500" style={{ fontSize: '0.8em' }}>Ich bestätige die Kenntnisnahme des oben genannten Sachverhalts.</p>
-      <div className="grid grid-cols-3 gap-8">
+      <div className={`grid ${type === 'meeting_minute' ? 'grid-cols-2' : 'grid-cols-3'} gap-8`}>
         <div>
           <div className="border-b border-black h-8"></div>
-          <p className="mt-1 text-center" style={{ fontSize: '0.7em' }}>Unterschrift Lehrkraft / Protokollant</p>
+          <p className="mt-1 text-center" style={{ fontSize: '0.7em' }}>Unterschrift {type === 'meeting_minute' ? 'Sitzungsleitung' : 'Lehrkraft / Protokollant'}</p>
         </div>
         <div>
           <div className="border-b border-black h-8"></div>
-          <p className="mt-1 text-center" style={{ fontSize: '0.7em' }}>Unterschrift Schüler:in</p>
+          <p className="mt-1 text-center" style={{ fontSize: '0.7em' }}>Unterschrift {type === 'meeting_minute' ? 'Protokollant' : 'Schüler:in'}</p>
         </div>
-        <div>
-          <div className="border-b border-black h-8"></div>
-          <p className="mt-1 text-center" style={{ fontSize: '0.7em' }}>Unterschrift Erziehungsberechtigte/r</p>
-        </div>
+        {type !== 'meeting_minute' && (
+          <div>
+            <div className="border-b border-black h-8"></div>
+            <p className="mt-1 text-center" style={{ fontSize: '0.7em' }}>Unterschrift Erziehungsberechtigte/r</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -206,7 +221,7 @@ export const SinglePrintPreview: React.FC<SinglePrintPreviewProps> = ({ data, ty
               <LongText label="Sofortmaßnahmen & Pädagogische Konsequenzen" value={data.immediateActions} />
               <LongText label="Vereinbarungen / Verbleib" value={data.agreements} />
             </>
-          ) : (
+          ) : type === 'protocol' ? (
             // PROTOCOL LAYOUT
             <>
               <div className="grid grid-cols-2 gap-x-12 gap-y-4 mb-8">
@@ -240,6 +255,39 @@ export const SinglePrintPreview: React.FC<SinglePrintPreviewProps> = ({ data, ty
               ) : (
                 <div className="mt-4 text-gray-500 italic" style={{ fontSize: '0.9em' }}>Kein direkter Folgetermin vereinbart.</div>
               )}
+            </>
+          ) : (
+            // MEETING MINUTE LAYOUT
+            <>
+              <div className="mb-8">
+                <h2 className="text-xl font-bold border-b-2 border-gray-800 pb-2 mb-4">{data.title}</h2>
+                <div className="grid grid-cols-2 gap-x-12 gap-y-4">
+                  <Field label="Datum" value={formatDate(data.date)} />
+                  <Field label="Zeit" value={data.time} />
+                  <Field label="Sitzungsleitung" value={data.chairperson} />
+                  <Field label="Protokollant" value={data.minutesTaker} />
+                  <Field label="Anwesenheit" value={data.attendees} fullWidth />
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <h3 className="font-bold uppercase text-gray-500 border-b border-gray-200 pb-1" style={{ fontSize: '0.85em' }}>Tagesordnungspunkte</h3>
+                {data.agendaItems && data.agendaItems.length > 0 ? (
+                  data.agendaItems.map((item: any, index: number) => (
+                    <div key={item.id} className="mb-6" style={{ breakInside: 'avoid' }}>
+                      <h4 className="font-bold text-lg mb-2">TOP {index + 1}: {item.title}</h4>
+                      <div className="p-4 bg-gray-50 border border-gray-200 rounded">
+                        <div 
+                          className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0"
+                          dangerouslySetInnerHTML={{ __html: item.content }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-gray-500 italic">Keine Tagesordnungspunkte vorhanden.</div>
+                )}
+              </div>
             </>
           )}
 

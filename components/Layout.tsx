@@ -79,7 +79,7 @@ export const AppLayout = ({ children }: { children?: React.ReactNode }) => {
         fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col 
         transition-transform duration-300 ease-in-out shadow-xl md:shadow-none
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
-        md:translate-x-0 md:static md:h-screen
+        md:translate-x-0 md:sticky md:top-0 md:h-screen
         print:hidden
       `}>
         <div className="p-6 border-b border-slate-800 flex flex-col items-center relative">
